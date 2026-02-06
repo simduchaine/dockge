@@ -182,6 +182,9 @@ export default {
         "password.repeatNewPassword"() {
             this.invalidPassword = false;
         },
+        "$route.path"() {
+             this.getApiKey();
+        }
     },
 
     methods: {
@@ -230,8 +233,10 @@ export default {
         },
 
         getApiKey() {
+            console.log("Fetching API Key...");
             this.$root.getSocket().emit("getApiKey", (res) => {
                 if (res.ok) {
+                    console.log("API Key fetched:", res.apiKey);
                     this.apiKey = res.apiKey;
                 }
             });

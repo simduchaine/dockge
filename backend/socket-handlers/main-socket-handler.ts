@@ -348,14 +348,18 @@ export class MainSocketHandler extends SocketHandler {
         socket.on("getApiKey", async (callback) => {
             try {
                 checkLogin(socket);
-                const user = await R.findOne("user", " id = ? ", [
-                    socket.userID,
-                ]) as User;
 
-                if (user) {
+                // Directly fetch the api_key column to avoid ORM property mapping issues
+                const result = await R.getAll("SELECT api_key FROM user WHERE id = ?", [
+                    socket.userID
+                ]);
+
+                if (result && result.length > 0) {
+                    const apiKey = result[0].api_key;
+                    log.info("apiKey", "Direct SQL Fetch: " + apiKey);
                     callback({
                         ok: true,
-                        apiKey: user.api_key,
+                        apiKey: apiKey,
                     });
                 } else {
                     throw new Error("User not found");
