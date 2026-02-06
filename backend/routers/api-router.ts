@@ -41,15 +41,27 @@ export class ApiRouter extends Router {
         router.get("/api/stacks", async (req, res) => {
             try {
                 const stackList = await Stack.getStackList(server);
-                const result = [];
 
-                for (const [name, stack] of stackList) {
-                    result.push({
+                const result = await Promise.all(Array.from(stackList.values()).map(async (stack) => {
+                    const services = [];
+                    const serviceStatusList = await stack.getServiceStatusList();
+
+                    for (const [serviceName, status] of serviceStatusList) {
+                        services.push({
+                            name: serviceName,
+                            ...status,
+                        });
+                    }
+
+                    return {
                         name: stack.name,
                         status: this.statusToString(stack.status),
                         statusNum: stack.status,
-                    });
-                }
+                        isManagedByDockge: stack.isManagedByDockge,
+                        composeFileName: stack.composeFileName,
+                        services: services,
+                    };
+                }));
 
                 res.json(result);
             } catch (e) {
@@ -96,6 +108,10 @@ export class ApiRouter extends Router {
                     name: stack.name,
                     status: this.statusToString(stack.status),
                     statusNum: stack.status,
+                    isManagedByDockge: stack.isManagedByDockge,
+                    composeFileName: stack.composeFileName,
+                    composeYAML: stack.composeYAML,
+                    composeENV: stack.composeENV,
                     services: services,
                 });
 
