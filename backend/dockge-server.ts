@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { MainRouter } from "./routers/main-router";
+import { ApiRouter } from "./routers/api-router";
 import * as fs from "node:fs";
 import { PackageJson } from "type-fest";
 import { Database } from "./database";
@@ -39,24 +40,25 @@ import { ManageAgentSocketHandler } from "./socket-handlers/manage-agent-socket-
 import { Terminal } from "./terminal";
 
 export class DockgeServer {
-    app : Express;
-    httpServer : http.Server;
-    packageJSON : PackageJson;
-    io : socketIO.Server;
-    config : Config;
-    indexHTML : string = "";
+    app: Express;
+    httpServer: http.Server;
+    packageJSON: PackageJson;
+    io: socketIO.Server;
+    config: Config;
+    indexHTML: string = "";
 
     /**
      * List of express routers
      */
-    routerList : Router[] = [
+    routerList: Router[] = [
         new MainRouter(),
+        new ApiRouter(),
     ];
 
     /**
      * List of socket handlers (no agent support)
      */
-    socketHandlerList : SocketHandler[] = [
+    socketHandlerList: SocketHandler[] = [
         new MainSocketHandler(),
         new ManageAgentSocketHandler(),
     ];
@@ -66,7 +68,7 @@ export class DockgeServer {
     /**
      * List of socket handlers (support agent)
      */
-    agentSocketHandlerList : AgentSocketHandler[] = [
+    agentSocketHandlerList: AgentSocketHandler[] = [
         new DockerSocketHandler(),
         new TerminalSocketHandler(),
     ];
@@ -76,16 +78,16 @@ export class DockgeServer {
      */
     needSetup = false;
 
-    jwtSecret : string = "";
+    jwtSecret: string = "";
 
-    stacksDir : string = "";
+    stacksDir: string = "";
 
     /**
      *
      */
     constructor() {
         // Catch unexpected errors here
-        let unexpectedErrorHandler = (error : unknown) => {
+        let unexpectedErrorHandler = (error: unknown) => {
             console.trace(error);
             console.error("If you keep encountering errors, please report to https://github.com/louislam/dockge");
         };
@@ -251,16 +253,16 @@ export class DockgeServer {
         this.io.on("connection", async (socket: Socket) => {
             let dockgeSocket = socket as DockgeSocket;
             dockgeSocket.instanceManager = new AgentManager(dockgeSocket);
-            dockgeSocket.emitAgent = (event : string, ...args : unknown[]) => {
+            dockgeSocket.emitAgent = (event: string, ...args: unknown[]) => {
                 let obj = args[0];
-                if (typeof(obj) === "object") {
+                if (typeof (obj) === "object") {
                     let obj2 = obj as LooseObject;
                     obj2.endpoint = dockgeSocket.endpoint;
                 }
                 dockgeSocket.emit("agent", event, ...args);
             };
 
-            if (typeof(socket.request.headers.endpoint) === "string") {
+            if (typeof (socket.request.headers.endpoint) === "string") {
                 dockgeSocket.endpoint = socket.request.headers.endpoint;
             } else {
                 dockgeSocket.endpoint = "";
@@ -327,7 +329,7 @@ export class DockgeServer {
         }
     }
 
-    async afterLogin(socket : DockgeSocket, user : User) {
+    async afterLogin(socket: DockgeSocket, user: User) {
         socket.userID = user.id;
         socket.join(user.id.toString());
 
@@ -367,7 +369,7 @@ export class DockgeServer {
             "jwtSecret",
         ]);
 
-        if (! jwtSecretBean) {
+        if (!jwtSecretBean) {
             log.info("server", "JWT secret is not found, generate one.");
             jwtSecretBean = await this.initJWTSecret();
             log.info("server", "Stored JWT secret into database");
@@ -390,7 +392,7 @@ export class DockgeServer {
         // Listen
         this.httpServer.listen(this.config.port, this.config.hostname, () => {
             if (this.config.hostname) {
-                log.info( "server", `Listening on ${this.config.hostname}:${this.config.port}`);
+                log.info("server", `Listening on ${this.config.hostname}:${this.config.port}`);
             } else {
                 log.info("server", `Listening on ${this.config.port}`);
             }
@@ -423,7 +425,7 @@ export class DockgeServer {
      * @param hideVersion Should we hide the version information in the response?
      * @returns
      */
-    async sendInfo(socket : Socket, hideVersion = false) {
+    async sendInfo(socket: Socket, hideVersion = false) {
         let versionProperty;
         let latestVersionProperty;
         let isContainer;
@@ -449,7 +451,7 @@ export class DockgeServer {
      * @param {Socket} socket Socket to query
      * @returns IP of client
      */
-    async getClientIP(socket : Socket) : Promise<string> {
+    async getClientIP(socket: Socket): Promise<string> {
         let clientIP = socket.client.conn.remoteAddress;
 
         if (clientIP === undefined) {
@@ -533,7 +535,7 @@ export class DockgeServer {
      * @returns {void}
      * @throws The timezone is invalid
      */
-    checkTimezone(timezone : string) {
+    checkTimezone(timezone: string) {
         try {
             dayjs.utc("2013-11-18 11:55").tz(timezone).format();
         } catch (e) {
@@ -545,7 +547,7 @@ export class DockgeServer {
      * Initialize the data directory
      */
     initDataDir() {
-        if (! fs.existsSync(this.config.dataDir)) {
+        if (!fs.existsSync(this.config.dataDir)) {
             fs.mkdirSync(this.config.dataDir, { recursive: true });
         }
 
@@ -566,7 +568,7 @@ export class DockgeServer {
      * Init or reset JWT secret
      * @returns  JWT secret
      */
-    async initJWTSecret() : Promise<Bean> {
+    async initJWTSecret(): Promise<Bean> {
         let jwtSecretBean = await R.findOne("setting", " `key` = ? ", [
             "jwtSecret",
         ]);
@@ -601,9 +603,9 @@ export class DockgeServer {
                     stackList = await Stack.getStackList(this, useCache);
                 }
 
-                let map : Map<string, object> = new Map();
+                let map: Map<string, object> = new Map();
 
-                for (let [ stackName, stack ] of stackList) {
+                for (let [stackName, stack] of stackList) {
                     map.set(stackName, stack.toSimpleJSON(dockgeSocket.endpoint));
                 }
 
@@ -616,8 +618,8 @@ export class DockgeServer {
         }
     }
 
-    async getDockerNetworkList() : Promise<string[]> {
-        let res = await childProcessAsync.spawn("docker", [ "network", "ls", "--format", "{{.Name}}" ], {
+    async getDockerNetworkList(): Promise<string[]> {
+        let res = await childProcessAsync.spawn("docker", ["network", "ls", "--format", "{{.Name}}"], {
             encoding: "utf-8",
         });
 
@@ -646,7 +648,7 @@ export class DockgeServer {
      * Stops all monitors and closes the database connection.
      * @param signal The signal that triggered this function to be called.
      */
-    async shutdownFunction(signal : string | undefined) {
+    async shutdownFunction(signal: string | undefined) {
         log.info("server", "Shutdown requested");
         log.info("server", "Called signal: " + signal);
 
@@ -669,7 +671,7 @@ export class DockgeServer {
      * @param {string} userID
      * @param {string?} currentSocketID
      */
-    disconnectAllSocketClients(userID: number | undefined, currentSocketID? : string) {
+    disconnectAllSocketClients(userID: number | undefined, currentSocketID?: string) {
         for (const rawSocket of this.io.sockets.sockets.values()) {
             let socket = rawSocket as DockgeSocket;
             if ((!userID || socket.userID === userID) && socket.id !== currentSocketID) {

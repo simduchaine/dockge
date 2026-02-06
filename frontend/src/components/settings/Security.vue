@@ -62,6 +62,29 @@
                         </button>
                     </div>
                 </form>
+
+                <!-- API Key -->
+                <h5 class="my-4 settings-subheading">{{ $t("API Key") }}</h5>
+                <div class="mb-3">
+                    <div class="input-group">
+                        <input
+                            class="form-control"
+                            readonly
+                            :value="apiKey"
+                            :type="showApiKey ? 'text' : 'password'"
+                            placeholder="Not generated yet"
+                        />
+                        <button class="btn btn-outline-secondary" type="button" @click="showApiKey = !showApiKey">
+                            <font-awesome-icon :icon="showApiKey ? 'eye-slash' : 'eye'" />
+                        </button>
+                        <button class="btn btn-outline-primary" type="button" @click="generateApiKey">
+                            {{ apiKey ? $t("Regenerate") : $t("Generate") }}
+                        </button>
+                    </div>
+                    <div class="form-text">
+                        {{ $t("Use this key to authenticate with the API via x-api-key header.") }}
+                    </div>
+                </div>
             </template>
 
             <!-- TODO: Hidden for now -->
@@ -133,8 +156,14 @@ export default {
                 currentPassword: "",
                 newPassword: "",
                 repeatNewPassword: "",
-            }
+            },
+            apiKey: "",
+            showApiKey: false,
         };
+    },
+
+    mounted() {
+        this.getApiKey();
     },
 
     computed: {
@@ -198,6 +227,25 @@ export default {
         /** Show confirmation dialog for disable auth */
         confirmDisableAuth() {
             this.$refs.confirmDisableAuth.show();
+        },
+
+        getApiKey() {
+            this.$root.getSocket().emit("getApiKey", (res) => {
+                if (res.ok) {
+                    this.apiKey = res.apiKey;
+                }
+            });
+        },
+
+        generateApiKey() {
+             this.$root.getSocket().emit("generateApiKey", (res) => {
+                if (res.ok) {
+                    this.apiKey = res.apiKey;
+                    this.$root.toastRes(res);
+                } else {
+                    this.$root.toastRes(res);
+                }
+            });
         },
 
     },

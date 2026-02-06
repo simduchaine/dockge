@@ -20,9 +20,10 @@ import jwt from "jsonwebtoken";
 import { Settings } from "../settings";
 import fs, { promises as fsAsync } from "fs";
 import path from "path";
+import crypto from "crypto";
 
 export class MainSocketHandler extends SocketHandler {
-    create(socket : DockgeSocket, server : DockgeServer) {
+    create(socket: DockgeSocket, server: DockgeServer) {
 
         // ***************************
         // Public Socket API
@@ -211,7 +212,7 @@ export class MainSocketHandler extends SocketHandler {
             try {
                 checkLogin(socket);
 
-                if (! password.newPassword) {
+                if (!password.newPassword) {
                     throw new Error("Invalid new password");
                 }
 
@@ -321,11 +322,11 @@ export class MainSocketHandler extends SocketHandler {
         });
 
         // composerize
-        socket.on("composerize", async (dockerRunCommand : unknown, callback) => {
+        socket.on("composerize", async (dockerRunCommand: unknown, callback) => {
             try {
                 checkLogin(socket);
 
-                if (typeof(dockerRunCommand) !== "string") {
+                if (typeof (dockerRunCommand) !== "string") {
                     throw new ValidationError("dockerRunCommand must be a string");
                 }
 
@@ -343,9 +344,56 @@ export class MainSocketHandler extends SocketHandler {
                 callbackError(e, callback);
             }
         });
+        // API Key Management
+        socket.on("getApiKey", async (callback) => {
+            try {
+                checkLogin(socket);
+                const user = await R.findOne("user", " id = ? ", [
+                    socket.userID,
+                ]) as User;
+
+                if (user) {
+                    callback({
+                        ok: true,
+                        apiKey: user.api_key,
+                    });
+                } else {
+                    throw new Error("User not found");
+                }
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
+
+        socket.on("generateApiKey", async (callback) => {
+            try {
+                checkLogin(socket);
+                const user = await R.findOne("user", " id = ? ", [
+                    socket.userID,
+                ]) as User;
+
+                if (user) {
+                    // Generate a random API key (32 chars hex)
+                    // Generate a random API key (32 chars hex)
+                    const apiKey = crypto.randomBytes(16).toString("hex");
+                    user.api_key = apiKey;
+                    await R.store(user);
+
+                    callback({
+                        ok: true,
+                        apiKey: apiKey,
+                        msg: "API Key generated successfully",
+                    });
+                } else {
+                    throw new Error("User not found");
+                }
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
     }
 
-    async login(username : string, password : string) : Promise<User | null> {
+    async login(username: string, password: string): Promise<User | null> {
         if (typeof username !== "string" || typeof password !== "string") {
             return null;
         }
