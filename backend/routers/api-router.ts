@@ -37,6 +37,55 @@ export class ApiRouter extends Router {
             next();
         });
 
+        // Get Stacks Summary
+        router.get("/api/summary", async (req, res) => {
+            try {
+                const stackList = await Stack.getStackList(server);
+                const stacks = Array.from(stackList.values());
+
+                const summary = {
+                    total: stacks.length,
+                    active: 0,
+                    unknown: 0,
+                    inactive: 0,
+                };
+
+                for (const stack of stacks) {
+                    if (stack.status === RUNNING) {
+                        summary.active++;
+                    } else if (stack.status === UNKNOWN) {
+                        summary.unknown++;
+                    } else {
+                        summary.inactive++;
+                    }
+                }
+
+                res.json(summary);
+            } catch (e) {
+                if (e instanceof Error) {
+                    if (e.message.includes("spawn docker ENOENT")) {
+                        res.json({
+                            total: 0,
+                            active: 0,
+                            unknown: 0,
+                            inactive: 0,
+                        });
+                        return;
+                    }
+
+                    res.status(500).json({
+                        ok: false,
+                        msg: e.message,
+                    });
+                } else {
+                    res.status(500).json({
+                        ok: false,
+                        msg: "Unknown error",
+                    });
+                }
+            }
+        });
+
         // Get Stacks
         router.get("/api/stacks", async (req, res) => {
             try {
